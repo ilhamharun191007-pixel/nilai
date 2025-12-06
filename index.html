@@ -1,0 +1,258 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aplikasi Nilai Raport - Simpel Dark</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    body { font-family: 'Poppins', sans-serif; background: #0d0d0d; margin: 0; color: #e6e6e6; }
+    #splash { position: fixed; inset: 0; background: #000; display: flex; justify-content: center; align-items: center; font-size: 22px; transition: .7s; z-index: 9999; }
+    .fade-out { opacity: 0; pointer-events: none; }
+    header { text-align: center; padding: 18px 0; background: #101010; border-bottom: 1px solid #222; font-size: 20px; font-weight: 600; }
+    nav { background: #111; border-bottom: 1px solid #222; padding: 10px 0; display: flex; justify-content: center; gap: 15px; }
+    nav button { padding: 6px 14px; border-radius: 8px; background: #222; border: 1px solid #444; color: #f2f2f2; cursor: pointer; }
+    nav button:hover { background: #333; }
+    .container { width: 90%; max-width: 500px; margin: 25px auto; background: #131313; padding: 20px; border-radius: 12px; border: 1px solid #222; }
+    input, select, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #333; background: #1a1a1a; color: #eee; font-size: 14px; }
+    input.error { border-color: #ff4d4d; background: #2b0000; color: #fff; }
+    .btn-white { background: #fff; color: #000; border: none; font-weight: 600; }
+    .btn-white:hover { background: #e6e6e6; }
+    .btn-black { background: #000; border: 1px solid #555; color: #fff; }
+    .btn-small { width: auto; padding: 6px 12px; font-size: 13px; }
+    .hidden { display: none; }
+    .card { background: #1b1b1b; border: 1px solid #333; padding: 12px; border-radius: 10px; margin-bottom: 15px; }
+    .mapelItem { margin-bottom: 12px; }
+    .error-msg { color: #ff4d4d; font-size: 13px; margin-top: -5px; margin-bottom: 5px; display: none; }
+</style>
+</head>
+
+<body>
+
+<div id="splash">Loading...</div>
+
+<header>Aplikasi Penghitungan Nilai Raport</header>
+
+<nav>
+    <button onclick="showPage('loginPage')">Login</button>
+    <button onclick="showPage('nilaiPage')">Penghitungan</button>
+    <button onclick="showPage('savedPage')">Data Tersimpan</button>
+</nav>
+
+<!-- LOGIN -->
+<div class="container" id="loginPage">
+    <h2>Login Siswa</h2>
+    <label>Nama Siswa</label>
+    <input type="text" id="nama">
+    <div class="error-msg" id="errNama">Nama wajib diisi!</div>
+
+    <label>Kelas</label>
+    <input type="text" id="kelas">
+    <div class="error-msg" id="errKelas">Kelas wajib diisi!</div>
+
+    <button class="btn-white" onclick="masuk()">Masuk</button>
+</div>
+
+<!-- NILAI -->
+<div class="container hidden" id="nilaiPage">
+    <h2>Hitung Nilai Semester</h2>
+
+    <label>Pilih Semester</label>
+    <select id="semester" onchange="resetForm()">
+        <option value="1">Semester 1</option>
+        <option value="2">Semester 2</option>
+        <option value="3">Semester 3</option>
+        <option value="4">Semester 4</option>
+    </select>
+
+    <button class="btn-small btn-white" onclick="tambahMapel()">+ Tambah Mapel</button>
+
+    <div id="mapelList"></div>
+
+    <button class="btn-black" onclick="simpanSemester()">Simpan Semester</button>
+
+    <div id="hasilSmt"></div>
+
+    <div id="rekapBtn" class="hidden">
+        <button class="btn-white" onclick="rekapAkhir()">Lihat Rekap Nilai Akhir</button>
+    </div>
+</div>
+
+<!-- REKAP -->
+<div class="container hidden" id="rekapPage">
+    <h2>Rekap Nilai Akhir</h2>
+
+    <div id="rekapIsi"></div>
+
+    <canvas id="chartNilai" style="margin-top:20px;"></canvas>
+
+    <button class="btn-white" onclick="saveFinalData()">Simpan Hasil Akhir</button>
+</div>
+
+<!-- DATA TERSIMPAN -->
+<div class="container hidden" id="savedPage">
+    <h2>Data Hasil Tersimpan</h2>
+    <div id="savedList"></div>
+</div>
+
+<script>
+window.onload = () => { setTimeout(() => splash.classList.add("fade-out"), 800); };
+
+let dataSemester = {1:null,2:null,3:null,4:null};
+let mapelCount = 0;
+let chart = null;
+
+function showPage(page) {
+    document.querySelectorAll(".container").forEach(c => c.classList.add("hidden"));
+    document.getElementById(page).classList.remove("hidden");
+    if (page === "savedPage") loadSaved();
+}
+
+// LOGIN
+function masuk() {
+    nama.classList.remove("error");
+    kelas.classList.remove("error");
+    document.getElementById("errNama").style.display = "none";
+    document.getElementById("errKelas").style.display = "none";
+
+    const namaVal = nama.value.trim();
+    const kelasVal = kelas.value.trim();
+    let valid = true;
+
+    if (namaVal === "") { nama.classList.add("error"); document.getElementById("errNama").style.display = "block"; valid = false; }
+    if (kelasVal === "") { kelas.classList.add("error"); document.getElementById("errKelas").style.display = "block"; valid = false; }
+    if (!valid) return;
+
+    showPage("nilaiPage");
+}
+
+function tambahMapel() {
+    mapelCount++;
+    let div = document.createElement("div");
+    div.className = "mapelItem";
+    div.innerHTML = `
+        <label>Mapel ${mapelCount}</label>
+        <div style="display:flex; gap:10px;">
+            <input type="number" class="nilaiMapel" style="flex:1;">
+            <button class="btn-small btn-black" onclick="hapusMapel(this)">Hapus</button>
+        </div>`;
+    mapelList.appendChild(div);
+}
+
+function hapusMapel(btn) { btn.parentElement.parentElement.remove(); }
+function resetForm() { mapelList.innerHTML = ""; mapelCount = 0; hasilSmt.innerHTML = ""; }
+
+function simpanSemester() {
+    let inputs = document.querySelectorAll(".nilaiMapel");
+    if (inputs.length === 0) return alert("Tambah minimal 1 mapel!");
+
+    let total = 0;
+    for (let i of inputs) {
+        if (i.value === "") return alert("Semua nilai wajib diisi!");
+        total += Number(i.value);
+    }
+
+    let rata = total / inputs.length;
+    let smt = semester.value;
+    dataSemester[smt] = Number(rata.toFixed(2));
+    hasilSmt.innerHTML = `✔ Rata-rata Semester ${smt}: <b>${rata.toFixed(2)}</b>`;
+
+    if (dataSemester[1] && dataSemester[2] && dataSemester[3] && dataSemester[4]) {
+        rekapBtn.classList.remove("hidden");
+    }
+}
+
+function rekapAkhir() {
+    showPage("rekapPage");
+    let total = (dataSemester[1] + dataSemester[2] + dataSemester[3] + dataSemester[4]) / 4;
+    rekapIsi.innerHTML = `
+        <p>Semester 1: <b>${dataSemester[1].toFixed(2)}</b></p>
+        <p>Semester 2: <b>${dataSemester[2].toFixed(2)}</b></p>
+        <p>Semester 3: <b>${dataSemester[3].toFixed(2)}</b></p>
+        <p>Semester 4: <b>${dataSemester[4].toFixed(2)}</b></p>
+        <hr style="border-color:#333;">
+        <h3>Total Nilai Akhir: <b>${total.toFixed(2)}</b></h3>`;
+    buatGrafik();
+}
+
+function buatGrafik() {
+    let ctx = document.getElementById("chartNilai").getContext("2d");
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: ["Semester 1", "Semester 2", "Semester 3", "Semester 4"],
+            datasets: [{
+                label: "Nilai Rata-rata",
+                data: [dataSemester[1], dataSemester[2], dataSemester[3], dataSemester[4]],
+                borderColor: "#4CAF50",
+                backgroundColor: "rgba(76, 175, 80, 0.3)",
+                borderWidth: 3,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: "#fff",
+                pointBorderColor: "#4CAF50"
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { labels: { color: "#eee" } } },
+            scales: {
+                x: { ticks: { color: "#ccc" }, grid: { color: "#333" } },
+                y: { ticks: { color: "#ccc" }, grid: { color: "#333" } }
+            }
+        }
+    });
+}
+
+// SIMPAN LOKAL + GOOGLE SHEETS
+function saveFinalData() {
+    if (!dataSemester[4]) return alert("Hitung semua semester dahulu!");
+    let totalAkhir = document.querySelector("#rekapIsi h3 b").innerText;
+    let finalData = {
+        nama: nama.value,
+        kelas: kelas.value,
+        tanggal: new Date().toLocaleString(),
+        data: {...dataSemester},
+        total: totalAkhir
+    };
+
+    // Simpan ke localStorage
+    let saved = JSON.parse(localStorage.getItem("raportData") || "[]");
+    saved.push(finalData);
+    localStorage.setItem("raportData", JSON.stringify(saved));
+
+    // Kirim ke Google Sheets
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzXPGCeFfo3gqMrgjJuD9rxC5mJ0cChg_GdbMy3FNwAsIVGKxDYaqads4laf7h7Qv6K/exec"; // ganti dengan URL Web App mu
+    fetch(WEB_APP_URL, {
+        method: "POST",
+        body: JSON.stringify(finalData),
+        headers: { "Content-Type": "application/json" }
+    })
+    .then(res => res.json())
+    .then(res => {
+        if(res.status === 'success') alert("Data berhasil disimpan di perangkat & Google Sheets!");
+        else alert("Gagal menyimpan ke Google Sheets: " + res.message);
+    })
+    .catch(err => alert("Terjadi error saat mengirim ke Google Sheets: " + err));
+}
+
+// LOAD DATA LOKAL
+function loadSaved() {
+    let saved = JSON.parse(localStorage.getItem("raportData") || "[]");
+    savedList.innerHTML = "";
+    if (saved.length === 0) { savedList.innerHTML = "<p>Belum ada data tersimpan.</p>"; return; }
+    saved.forEach(d => {
+        let div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `<b>${d.nama} — Kelas ${d.kelas}</b><br><small>${d.tanggal}</small><p>Total Nilai Akhir: <b>${d.total}</b></p>`;
+        savedList.appendChild(div);
+    });
+}
+</script>
+
+</body>
+</html>
