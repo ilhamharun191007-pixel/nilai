@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -111,7 +110,7 @@ function showPage(page) {
     if (page === "savedPage") loadSaved();
 }
 
-// LOGIN
+// ================= LOGIN =================
 function masuk() {
     nama.classList.remove("error");
     kelas.classList.remove("error");
@@ -129,6 +128,7 @@ function masuk() {
     showPage("nilaiPage");
 }
 
+// ================== MAPEL =================
 function tambahMapel() {
     mapelCount++;
     let div = document.createElement("div");
@@ -145,19 +145,28 @@ function tambahMapel() {
 function hapusMapel(btn) { btn.parentElement.parentElement.remove(); }
 function resetForm() { mapelList.innerHTML = ""; mapelCount = 0; hasilSmt.innerHTML = ""; }
 
+// ====================== SIMPAN SEMESTER ======================
 function simpanSemester() {
-    let inputs = document.querySelectorAll(".nilaiMapel");
-    if (inputs.length === 0) return alert("Tambah minimal 1 mapel!");
-
-    let total = 0;
-    for (let i of inputs) {
-        if (i.value === "") return alert("Semua nilai wajib diisi!");
-        total += Number(i.value);
+    const inputs = document.querySelectorAll(".nilaiMapel");
+    if (inputs.length === 0) {
+        alert("Tambah minimal 1 mapel!");
+        return;
     }
 
-    let rata = total / inputs.length;
-    let smt = semester.value;
+    let total = 0;
+    for (let i = 0; i < inputs.length; i++) {
+        const val = parseFloat(inputs[i].value);
+        if (isNaN(val)) {
+            alert(`Nilai Mapel ${i + 1} harus diisi dengan angka!`);
+            return;
+        }
+        total += val;
+    }
+
+    const rata = total / inputs.length;
+    const smt = semester.value;
     dataSemester[smt] = Number(rata.toFixed(2));
+
     hasilSmt.innerHTML = `✔ Rata-rata Semester ${smt}: <b>${rata.toFixed(2)}</b>`;
 
     if (dataSemester[1] && dataSemester[2] && dataSemester[3] && dataSemester[4]) {
@@ -165,9 +174,10 @@ function simpanSemester() {
     }
 }
 
+// ====================== REKAP ======================
 function rekapAkhir() {
     showPage("rekapPage");
-    let total = (dataSemester[1] + dataSemester[2] + dataSemester[3] + dataSemester[4]) / 4;
+    const total = (dataSemester[1] + dataSemester[2] + dataSemester[3] + dataSemester[4]) / 4;
     rekapIsi.innerHTML = `
         <p>Semester 1: <b>${dataSemester[1].toFixed(2)}</b></p>
         <p>Semester 2: <b>${dataSemester[2].toFixed(2)}</b></p>
@@ -179,7 +189,7 @@ function rekapAkhir() {
 }
 
 function buatGrafik() {
-    let ctx = document.getElementById("chartNilai").getContext("2d");
+    const ctx = document.getElementById("chartNilai").getContext("2d");
     if (chart) chart.destroy();
     chart = new Chart(ctx, {
         type: "line",
@@ -208,15 +218,20 @@ function buatGrafik() {
     });
 }
 
-// SIMPAN LOKAL + GOOGLE SHEETS
+// ====================== SIMPAN FINAL & GOOGLE SHEETS ======================
 function saveFinalData() {
-    if (!dataSemester[4]) return alert("Hitung semua semester dahulu!");
-    let totalAkhir = document.querySelector("#rekapIsi h3 b").innerText;
-    let finalData = {
-        nama: nama.value,
-        kelas: kelas.value,
+    if (!dataSemester[1] || !dataSemester[2] || !dataSemester[3] || !dataSemester[4]) {
+        alert("Hitung semua semester dahulu!");
+        return;
+    }
+
+    const totalAkhir = ((dataSemester[1] + dataSemester[2] + dataSemester[3] + dataSemester[4]) / 4).toFixed(2);
+
+    const finalData = {
+        nama: nama.value.trim(),
+        kelas: kelas.value.trim(),
         tanggal: new Date().toLocaleString(),
-        data: {...dataSemester},
+        data: { ...dataSemester },
         total: totalAkhir
     };
 
@@ -226,7 +241,8 @@ function saveFinalData() {
     localStorage.setItem("raportData", JSON.stringify(saved));
 
     // Kirim ke Google Sheets
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw52sRFA0xonTLJofc61D2VY9Rz2iRVCdLsAnYp_yrwqRMx3QsErddyp9WOM9abkGD2/exec"; // ganti dengan URL Web App mu
+    const WEB_APP_URL = "https://script.google.com/macros/s/YOUR_WEB_APP_ID/exec"; // ganti dengan URL Web App mu
+
     fetch(WEB_APP_URL, {
         method: "POST",
         body: JSON.stringify(finalData),
@@ -234,19 +250,25 @@ function saveFinalData() {
     })
     .then(res => res.json())
     .then(res => {
-        if(res.status === 'success') alert("Data berhasil disimpan di perangkat & Google Sheets!");
-        else alert("Gagal menyimpan ke Google Sheets: " + res.message);
+        if (res.status === 'success') {
+            alert("Data berhasil disimpan di perangkat & Google Sheets!");
+        } else {
+            alert("Gagal menyimpan ke Google Sheets: " + (res.message || "Unknown error"));
+        }
     })
-    .catch(err => alert("Terjadi error saat mengirim ke Google Sheets: " + err));
+    .catch(err => {
+        console.error("Fetch error:", err);
+        alert("Terjadi error saat mengirim ke Google Sheets. Cek console untuk detail.");
+    });
 }
 
-// LOAD DATA LOKAL
+// ====================== LOAD DATA LOKAL ======================
 function loadSaved() {
-    let saved = JSON.parse(localStorage.getItem("raportData") || "[]");
+    const saved = JSON.parse(localStorage.getItem("raportData") || "[]");
     savedList.innerHTML = "";
     if (saved.length === 0) { savedList.innerHTML = "<p>Belum ada data tersimpan.</p>"; return; }
     saved.forEach(d => {
-        let div = document.createElement("div");
+        const div = document.createElement("div");
         div.className = "card";
         div.innerHTML = `<b>${d.nama} — Kelas ${d.kelas}</b><br><small>${d.tanggal}</small><p>Total Nilai Akhir: <b>${d.total}</b></p>`;
         savedList.appendChild(div);
