@@ -226,7 +226,7 @@ function saveFinalData() {
     localStorage.setItem("raportData", JSON.stringify(saved));
 
     // Kirim ke Google Sheets
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzXPGCeFfo3gqMrgjJuD9rxC5mJ0cChg_GdbMy3FNwAsIVGKxDYaqads4laf7h7Qv6K/exec"; // ganti dengan URL Web App mu
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw52sRFA0xonTLJofc61D2VY9Rz2iRVCdLsAnYp_yrwqRMx3QsErddyp9WOM9abkGD2/exec"; // ganti dengan URL Web App mu
     fetch(WEB_APP_URL, {
         method: "POST",
         body: JSON.stringify(finalData),
