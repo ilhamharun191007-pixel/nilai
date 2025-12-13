@@ -328,25 +328,27 @@ function saveFinalData() {
     saved.push(finalData);
     localStorage.setItem("raportData", JSON.stringify(saved));
 
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzZaHOTNrEYqcXoJZUbq075AfyQsrtd8CV_99cLtxs2P0OjWX-C3qbf6T2nkthS6CHS/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxAk-Fnb1p9x0CyFg4qExLNbDaZNQcJHJwREf8z-AA---figLi8BiP8i9u5YRJMxlFl/exec";
 
     fetch(WEB_APP_URL, {
-        method: "POST",
-        body: JSON.stringify(finalData),
-        headers: { "Content-Type": "application/json" }
-    })
-    .then(res => res.json())
-    .then(res => {
-        if (res.status === 'success') {
-            alert("Data berhasil disimpan di perangkat & Google Sheets!");
-        } else {
-            alert("Gagal menyimpan ke Google Sheets: " + (res.message || "Unknown error"));
-        }
-    })
-    .catch(err => {
-        console.error("Fetch error:", err);
-        alert("Terjadi error saat mengirim ke Google Sheets. Cek console untuk detail.");
-    });
+    method: "POST",
+    body: JSON.stringify(finalData)
+})
+.then(res => res.text())
+.then(text => {
+    console.log("GAS RAW RESPONSE:", text);
+    const res = JSON.parse(text);
+
+    if (res.status === "success") {
+        alert("Data berhasil disimpan ke Google Sheets!");
+    } else {
+        alert("Gagal: " + res.message);
+    }
+})
+.catch(err => {
+    console.error("FETCH ERROR:", err);
+    alert("Gagal mengirim data (CORS fixed version)");
+});
 }
 
 // ====================== LOAD DATA LOKAL ======================
